@@ -77,16 +77,48 @@ inline Int_t MMDataAnalysis::GetEntry(Long64_t entry){
   //mm_EventHits.SetTime(mm_Time_sec,mm_Time_nsec);
   mm_EventHits.SetEventNum(*triggerCounter);
   // fill event hits
+  int boardIP = -1;
+
+  int trig_BCID = -1;
+  int trig_TDO = -1;
+
   for(int i = 0; i < chip->size(); i++){
     for(int j = 0; j < channel->at(i).size(); j++){
-      MMHit hit(boardId->at(i),
+      if (channel->at(i).at(j) != 63)
+        continue;
+      if (boardId->at(i) == 0)
+        boardIP = 2;
+      else {
+        boardIP = 3;
+      }
+      mm_EventHits.SetTrigTime(grayDecoded->at(i).at(j), tdo->at(i).at(j), boardIP, chip->at(i));
+      //mm_EventHits.SetTrigTime(bcid->at(i).at(j), tdo->at(i).at(j), boardIP, chip->at(i));
+      //mm_EventHits.SetTrigTime(bcid->at(i).at(j)+relbcid->at(i).at(j), tdo->at(i).at(j), boardIP, chip->at(i));
+      mm_EventHits.SetTrigL0BCID(bcid->at(i).at(j), boardIP, chip->at(i));
+    }
+  }
+
+  for(int i = 0; i < chip->size(); i++){
+    for(int j = 0; j < channel->at(i).size(); j++){
+      if (boardId->at(i) == 0)
+        boardIP = 2;
+      else {
+        boardIP = 3;
+      }
+      if (boardIP == 3 && channel->at(i).at(j) > 60 && channel->at(i).at(j) < 63)
+        continue;
+      MMHit hit(boardIP,
                 chip->at(i),
                 channel->at(i).at(j),
                 m_RunNum);
       hit.SetPDO(pdo->at(i).at(j));
       hit.SetTDO(tdo->at(i).at(j));
-      hit.SetBCID(bcid->at(i).at(j));
+      //hit.SetBCID(bcid->at(i).at(j)+relbcid->at(i).at(j));
+      hit.SetBCID(grayDecoded->at(i).at(j));
+      hit.SetTrigBCID(mm_EventHits.TrigTimeBCID(boardIP, chip->at(i)));
+      hit.SetTrigTDO(mm_EventHits.TrigTimeTDO(boardIP, chip->at(i)));
 
+      //      std::cout << "tdo" << tdo->at(i).at(j) << "trig time" << hit.TrigTDO() << std::endl;
       mm_EventHits += hit;
     }
   }

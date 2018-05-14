@@ -42,6 +42,12 @@ public:
   void SetTime(int time, int time_ns);    
   double Time();
 
+  void SetTrigTime(int bcid, double tdo, int iboard, int ivmm);    
+  void SetTrigL0BCID(int bcid, int iboard, int ivmm);  // l0 bcid
+  int TrigTimeBCID(int iboard, int ivmm);
+  int TrigTimeL0BCID(int iboard, int ivmm);
+  double TrigTimeTDO(int iboard, int ivmm);
+
   void SetEventNum(std::vector<int> evt);    
   int EventNum(int ib, int ivmm);
   
@@ -51,6 +57,12 @@ public:
 private:
   std::vector<MMFE8Hits*> m_boards;
   double m_time;
+  std::vector<int> m_bcid = {-1, -1, -1, -1,
+                             -1, -1, -1, -1};
+  std::vector<int> m_l0bcid = {-1, -1, -1, -1,
+                             -1, -1, -1, -1};
+  std::vector<double> m_tdo = {-1, -1, -1, -1,
+                               -1, -1, -1, -1};
   std::vector<int> m_evt;
 };
 
@@ -155,6 +167,45 @@ inline void MMEventHits::SetTime(int time, int time_ns){
 
 inline double MMEventHits::Time(){
   return m_time;
+}
+
+inline void MMEventHits::SetTrigTime(int bcid, double tdo, int iboard, int ivmm){
+  if (ivmm > 1){
+    std::cout << "Need to add more than 1 vmm per board handling! Error!" << std::endl;
+  }
+  m_bcid[iboard] = bcid;
+  m_tdo[iboard] = tdo;
+}
+
+inline void MMEventHits::SetTrigL0BCID(int bcid, int iboard, int ivmm){
+  if (ivmm > 1){
+    std::cout << "Need to add more than 1 vmm per board handling! Error!" << std::endl;
+  }
+  m_l0bcid[iboard] = bcid;
+}
+
+inline int MMEventHits::TrigTimeBCID(int iboard, int ivmm){
+  if (ivmm > 1){
+    std::cout << "Need to add more than 1 vmm per board handling! Error!" << std::endl;
+    return -1;
+  }
+  return m_bcid[iboard]; //only ok for now
+}
+
+inline int MMEventHits::TrigTimeL0BCID(int iboard, int ivmm){
+  if (ivmm > 1){
+    std::cout << "Need to add more than 1 vmm per board handling! Error!" << std::endl;
+    return -1;
+  }
+  return m_l0bcid[iboard]; //only ok for now
+}
+
+inline double MMEventHits::TrigTimeTDO(int iboard, int ivmm){
+  if (ivmm > 1){
+    std::cout << "Need to add more than 1 vmm per board handling! Error!" << std::endl;
+    return -1;
+  }
+  return m_tdo[iboard]; //only ok for now
 }
 
 inline void MMEventHits::SetEventNum(std::vector<int> evt){

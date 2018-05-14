@@ -128,13 +128,13 @@ inline double TDOToTime::GetTime(double TDO, int MMFE8, int VMM, int CH) const {
   int c = m_CH_to_index[i][CH];
 
   // Pedestal unrealistic value
-  if (fabs(m_C[c]) > 40.) {
+  if (fabs(m_C[c]) > 100.) {
     //PrintError(MMFE8,VMM,CH);
     return -2.;
   }
 
   // Gain unrealistic value
-  if ( (m_S[c] < 1.) || (m_S[c] > 2.) ) {
+  if ( (m_S[c] < 2.) || (m_S[c] > 4.5) ) {
     //PrintError(MMFE8,VMM,CH);
     return -3.;
   }
@@ -238,4 +238,7 @@ inline void TDOToTime::Calibrate(MMHit& hit) const {
   hit.SetTime(GetTime(hit.TDO(), hit.MMFE8(), hit.VMM(), hit.VMMChannel()) - 10);
   hit.SetTDOGain(GetGain(hit.MMFE8(), hit.VMM(), hit.VMMChannel()));
   hit.SetTDOPed(GetPed(  hit.MMFE8(), hit.VMM(), hit.VMMChannel()));
+  hit.SetTrigTDOGain(GetGain(hit.MMFE8(), hit.VMM(), 63));
+  hit.SetTrigTDOPed(GetPed(hit.MMFE8(), hit.VMM(), 63));
+  //  std::cout << "setting trig ped" << hit.Trig << std::endl;
 }

@@ -56,6 +56,8 @@ inline MMClusterList MMPacmanAlgo::Cluster(const MMFE8Hits& hits){
   for(int i = 0; i < Nhit; i++){
     if(!IsGoodHit(hits[i]))
       continue;
+    if(hits[i].Channel() == 63)
+      continue;
     m_good_hits++;
    
     // new cluster if seed above thresh

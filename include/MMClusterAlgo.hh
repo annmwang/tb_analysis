@@ -77,7 +77,7 @@ inline bool MMClusterAlgo::IsGoodHit(const MMHit& hit){
     return false;
   if(!hit.IsTimeCalib())
     return false;
-  if(hit.MMFE8Index() <= 0)
+  if(hit.MMFE8Index() < 0)
     return false;
   if(hit.PDO() < 0)
     return false;
@@ -85,14 +85,15 @@ inline bool MMClusterAlgo::IsGoodHit(const MMHit& hit){
     return false;
   if(hit.Charge() < 0)
     return false;
-
-  // BCID
-  if(hit.TrigBCID() < 80)
+  if(hit.Channel() == 63)
     return false;
-  if(fabs(hit.BCID() - hit.TrigBCID()) > m_max_BCID_diff)
-    return false;
-  if(fabs(hit.BCID() - hit.TrigBCID()) < m_min_BCID_diff)
-    return false;
+//   // BCID
+//   if(hit.TrigBCID() < 80)
+//     return false;
+//   if(fabs(hit.BCID() - hit.TrigBCID()) > m_max_BCID_diff)
+//     return false;
+//   if(fabs(hit.BCID() - hit.TrigBCID()) < m_min_BCID_diff)
+//     return false;
 
   // TDO - add back
   // if(hit.Time() - 0.5*m_pad_time + 120. > m_max_time_diff)

@@ -91,8 +91,7 @@ inline Int_t MMDataAnalysis::GetEntry(Long64_t entry){
       else {
         boardIP = 3;
       }
-      mm_EventHits.SetTrigTime(grayDecoded->at(i).at(j), tdo->at(i).at(j), boardIP, chip->at(i));
-      //mm_EventHits.SetTrigTime(bcid->at(i).at(j), tdo->at(i).at(j), boardIP, chip->at(i));
+      mm_EventHits.SetTrigTime(grayDecoded->at(i).at(j), tdo->at(i).at(j), boardIP, chip->at(i)); // uncomment for non-L0
       //mm_EventHits.SetTrigTime(bcid->at(i).at(j)+relbcid->at(i).at(j), tdo->at(i).at(j), boardIP, chip->at(i));
       mm_EventHits.SetTrigL0BCID(bcid->at(i).at(j), boardIP, chip->at(i));
     }
@@ -113,8 +112,8 @@ inline Int_t MMDataAnalysis::GetEntry(Long64_t entry){
                 m_RunNum);
       hit.SetPDO(pdo->at(i).at(j));
       hit.SetTDO(tdo->at(i).at(j));
-      //hit.SetBCID(bcid->at(i).at(j)+relbcid->at(i).at(j));
-      hit.SetBCID(grayDecoded->at(i).at(j));
+      //hit.SetBCID(bcid->at(i).at(j)+relbcid->at(i).at(j)); // L0 only
+      hit.SetBCID(grayDecoded->at(i).at(j)); // uncomment for non L0
       hit.SetTrigBCID(mm_EventHits.TrigTimeBCID(boardIP, chip->at(i)));
       hit.SetTrigTDO(mm_EventHits.TrigTimeTDO(boardIP, chip->at(i)));
 

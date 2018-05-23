@@ -15,10 +15,23 @@
 #include "include/MMDataAnalysis.hh"
 #include "include/MMRunProperties.hh"
 #include "include/MMPacmanAlgo.hh"
+#include "include/MMPlot.hh"
 //#include "include/GeoOctuplet.hh"
 //#include "include/SimpleTrackFitter.hh"
 
 using namespace std;
+
+int dbcid_fix(int strip_bc, int trig_bc) {
+  int simple = strip_bc - trig_bc;
+  int corr = strip_bc - trig_bc + 4096;
+  int corr2 = strip_bc - trig_bc - 4096;
+  if (fabs(simple) < fabs(corr) && fabs(simple) < fabs(corr2))
+    return simple;
+  else if  (fabs(corr) < fabs(corr2))
+    return corr;
+  else
+    return corr;
+}
 
 int main(int argc, char* argv[]){
 
@@ -89,7 +102,7 @@ int main(int argc, char* argv[]){
 
   // clustering algorithm object
   //MMPacmanAlgo* PACMAN = new MMPacmanAlgo(2,2.,0.5);
-  MMPacmanAlgo* PACMAN = new MMPacmanAlgo(5,5.,2.);
+  MMPacmanAlgo* PACMAN = new MMPacmanAlgo(2,5.,2.);
 
   // data object
   MMDataAnalysis* DATA;
@@ -116,6 +129,7 @@ int main(int argc, char* argv[]){
   DATA = (MMDataAnalysis*) new MMDataAnalysis(T, m_RunNum);
 
   int ibo = 0;
+  int counter = 0;
   int nboards = 2;
   std::map< string, TH1D* > h1;
   std::map< string, TH2D* > h2;
@@ -131,8 +145,15 @@ int main(int argc, char* argv[]){
     h2[Form("strip_zpos_vs_ch_%i", ibo)] = new TH2D(Form("strip_zpos_vs_ch_%i", ibo), ";strip number;z_{drift} [mm];strip", 64, -0.5, 63.5, 150, -10,   20);
     h2[Form("strip_bcid_vs_ch_%i", ibo)] = new TH2D(Form("strip_bcid_vs_ch_%i", ibo), ";strip number;BCID [mm];strip",      64, -0.5, 63.5, 4096, -0.5,   4095);
     h2[Form("strip_dbc_vs_ch_%i", ibo)]  = new TH2D(Form("strip_dbc_vs_ch_%i", ibo), ";strip number;#Delta BCID [mm];strip",      64, -0.5, 63.5, 8191, -4095.5,   4095.5);
-    h1[Form("x_bary_%i", ibo)]           = new TH1D(Form("x_bary_%i", ibo),          ";x_{bary}; Events", 800, -0.5, 40);
+    h2[Form("strip_dbc_vs_ch_cut_%i", ibo)]  = new TH2D(Form("strip_dbc_vs_ch_cut_%i", ibo), ";strip number;#Delta BCID [mm];strip",      64, -0.5, 63.5, 8191, -4095.5,   4095.5);
+    h1[Form("x_bary_%i", ibo)]           = new TH1D(Form("x_bary_%i", ibo),          ";x_{bary}; Events", 200, -0.5, 40);
+    h2[Form("x_bary_%i_track_diff01_bary", ibo)] = new TH2D(Form("x_bary_%i_track_diff01_bary",ibo), ";x_{bary};x_{bary,0} - x_{bary,1}; Events", 200, -0.5, 40, 800, -20, 20);
+
+    h2[Form("hits_per_clus_%i_track_diff01_bary", ibo)] = new TH2D(Form("hits_per_clus_%i_track_diff01_bary",ibo), ";hits in a cluster;x_{bary,0} - x_{bary,1}; Events", 66,-0.5, 65.5, 800, -20, 20);
+    h2[Form("holes_per_clus_%i_track_diff01_bary", ibo)] = new TH2D(Form("holes_per_clus_%i_track_diff01_bary",ibo), ";holes in a cluster;x_{bary,0} - x_{bary,1}; Events", 10,-0.5, 9.5, 800, -20, 20);
   }
+  h2["hits_per_clus_max_track_diff01_bary"] = new TH2D("hits_per_clus_max_track_diff01_bary", ";hits in a cluster;x_{bary,0} - x_{bary,1}; Events", 66,-0.5, 65.5, 800, -20, 20);
+  h2["hits_per_clus_max_track_abs_diff01_bary"] = new TH2D("hits_per_clus_max_track_abs_diff01_bary", ";hits in a cluster;|x_{bary,0} - x_{bary,1}|; Events", 66,-0.5, 65.5, 400, 0, 20);
   h1["tdo_gain"] = new TH1D("tdo_gain", "tdo_gain", 100,   0, 3);
   h1["tdo_ped"]  = new TH1D("tdo_ped",  "tdo_ped",  100, -10, 50);
   h1["pdo_gain"] = new TH1D("pdo_gain", "pdo_gain", 100,   0, 30);
@@ -142,11 +163,18 @@ int main(int argc, char* argv[]){
   h2["dtrigBCIDrel_vs_evt"] = new TH2D("dtrigBCIDrel_vs_evt", "dtrigBCIDrel_vs_evt", 10000,-0.5, 9999.5, 8191,-4095.5,4095.5); 
 
   h1["track_diff01_bary"] = new TH1D("track_diff01_bary", ";x_{bary,0} - x_{bary,1}; Tracks", 800, -20, 20);
+
   h2["clus_vs_board"]          = new TH2D("clus_vs_board",          ";MMFE number;clusters;Events",            2, -0.5, 1.5, 32, -0.5, 31.5);
   h2["hits_vs_board"]          = new TH2D("hits_vs_board",          ";MMFE number;strips;Events",              2, -0.5, 1.5, 32, -0.5, 31.5);
   h2["trighits_vs_board"]      = new TH2D("trighits_vs_board",          ";MMFE number;hits;Events",              2, -0.5, 1.5, 32, -0.5, 31.5);
-  h2["hits_per_clus_vs_board"] = new TH2D("hits_per_clus_vs_board", ";MMFE number;hits in a cluster;Clusters", 2, -0.5, 1.5, 25, -0.5, 24.5);
-  h2["hits_per_clus_vs_board_fid"] = new TH2D("hits_per_clus_vs_board_fid", ";MMFE number;hits in a cluster;Clusters", 2, -0.5, 1.5, 25, -0.5, 24.5);
+  h2["hits_per_clus_vs_board"] = new TH2D("hits_per_clus_vs_board", ";MMFE number;hits in a cluster;Clusters", 2, -0.5, 1.5, 66, -0.5, 65.5);
+  h2["hits_per_clus_vs_board_fid"] = new TH2D("hits_per_clus_vs_board_fid", ";MMFE number;hits in a cluster;Clusters", 2, -0.5, 1.5, 66, -0.5, 65.5);
+  h2["hits_per_clus_0_vs_hits_per_clus_1_fid"] = new TH2D("hits_per_clus_0_vs_hits_per_clus_1_fid", ";hits in a cluster 0;hits in a cluster 1;Clusters", 66,-0.5, 65.5, 66, -0.5, 65.5);
+  h2["hits_per_clus_0_vs_hits_per_clus_1_fid_pm2"] = new TH2D("hits_per_clus_0_vs_hits_per_clus_1_fid_pm2", ";hits in a cluster 0;hits in a cluster 1;Clusters", 66,-0.5, 65.5, 66, -0.5, 65.5);
+  h2["hits_per_clus_0_vs_hits_per_clus_1_fid_pm4"] = new TH2D("hits_per_clus_0_vs_hits_per_clus_1_fid_pm4", ";hits in a cluster 0;hits in a cluster 1;Clusters", 66,-0.5, 65.5, 66, -0.5, 65.5);
+  h2["hits_per_clus_0_vs_hits_per_clus_1_fid_geq4"] = new TH2D("hits_per_clus_0_vs_hits_per_clus_1_fid_ge4", ";hits in a cluster 0;hits in a cluster 1;Clusters", 66,-0.5, 65.5, 66, -0.5, 65.5);
+
+  h2["clus_vs_board_postsel"]          = new TH2D("clus_vs_board_postsel",          ";MMFE number;clusters;Events",            2, -0.5, 1.5, 32, -0.5, 31.5);
 
   // collecting clusters and the nominal fit                                                                                                                                         
   std::vector<MMClusterList> clusters_perboard;
@@ -157,12 +185,15 @@ int main(int argc, char* argv[]){
   double vdrift = 1.0 / 20; // mm per ns
 
   int Nevent = DATA->GetNEntries();
-
+  TCanvas* can;
   // open output file
   TFile* fout = new TFile(outputFileName, "RECREATE");
   // set style for plotting
 
   int last_diff = -1;
+
+  fout->mkdir("event_displays");
+  MMPlot();
 
   for(int evt = 0; evt < Nevent; evt++){
     DATA->GetEntry(evt);
@@ -170,7 +201,8 @@ int main(int argc, char* argv[]){
       cout << "Processing event # " << evt << " | " << Nevent << endl;
 
 //     if (evt > 10000)
-//        break;
+//       break;
+    clusters_all.Reset();
     for (auto clus_list: clusters_perboard)
       clus_list.Reset();
     clusters_perboard.clear();
@@ -185,7 +217,10 @@ int main(int argc, char* argv[]){
   
     // initialize PACMAN info for this event
     PACMAN->SetEventTrigBCID(-1);
-
+    if (m_RunNum != 525 && m_RunNum != 453){
+      PACMAN->SetMaxBCIDDiff(7);
+      PACMAN->SetMinBCIDDiff(-2);
+    }
     // how many duplicate hits in the event
     // (number of hits with at least 1 dup)
     int Ndup_evt = DATA->mm_EventHits.GetNDuplicates();
@@ -193,13 +228,29 @@ int main(int argc, char* argv[]){
     int dBCID = DATA->mm_EventHits.TrigTimeL0BCID(2,0)- DATA->mm_EventHits.TrigTimeL0BCID(3,0);
     int dBCIDrel = DATA->mm_EventHits.TrigTimeBCID(2,0)- DATA->mm_EventHits.TrigTimeBCID(3,0);
     //std::cout << "bcid1: " << DATA->mm_EventHits.TrigTimeBCID(2,0) << ", bcid2: " << DATA->mm_EventHits.TrigTimeBCID(3,0) << std::endl;
+    if (m_RunNum == 525 || m_RunNum == 453){
+      skip_transition = false;
+    }
     if (last_diff != -1 && dBCIDrel != last_diff && skip_transition){
       last_diff = dBCIDrel;
       continue;
     }
     last_diff = dBCIDrel;
+
     h2["dtrigBCID_vs_evt"]->Fill(evt,dBCID);
+
+    if (m_RunNum == 525 && dBCID != -172)
+      continue;
+    if (m_RunNum == 453 && dBCID != 45)
+      continue;
+
     h2["dtrigBCIDrel_vs_evt"]->Fill(evt,dBCIDrel);
+
+    if (m_RunNum == 525 && (dBCIDrel != -172 && dBCIDrel != -173) )
+      continue;
+
+    if (m_RunNum == 453 && (dBCIDrel != 45 && dBCIDrel != 44) )
+      continue;
 
     // run pacman
     int nboardshit = DATA->mm_EventHits.GetNBoards();
@@ -209,17 +260,20 @@ int main(int argc, char* argv[]){
       MMClusterList board_clusters = PACMAN->Cluster(DATA->mm_EventHits[i]);
       if (board_clusters.GetNCluster() > 0)
         clusters_perboard.push_back(board_clusters);
-      //      else{
-      //std::cout << "eeeeek: " << evt << std::endl;
-      //      }
-      // strips: PDO vs channel
-      // its slow. only run if hella desired.
+
+
       for(int ich = 0; ich < DATA->mm_EventHits[i].GetNHits(); ich++){
         auto hit = DATA->mm_EventHits[i][ich];
-        ibo = hit.MMFE8Index();                                                                                                                                          
-
+        ibo = hit.MMFE8Index();                                                                                                              
+        
         if (hit.Channel() == 63)
           h2["trighits_vs_board"]->Fill(ibo,hit.GetNHits());
+
+        if (hit.Channel() != 63)
+          h2[Form("strip_dbc_vs_ch_%i",  ibo)]->Fill(hit.Channel(), dbcid_fix(hit.BCID(),DATA->mm_EventHits.TrigTimeBCID(hit.MMFE8(),0)));
+
+        h2[Form("strip_pdo_vs_ch_%i",  ibo)]->Fill(hit.Channel(), hit.PDO());
+        h2[Form("strip_tdo_vs_ch_%i",  ibo)]->Fill(hit.Channel(), hit.TDO());
 
         if( !PACMAN->IsGoodHit(hit) )
           continue;
@@ -234,14 +288,15 @@ int main(int argc, char* argv[]){
         h2[Form("strip_zpos_vs_ch_%i", ibo)]->Fill(hit.Channel(), hit.DriftTime(30., 0) * vdrift);
 
         h2[Form("strip_q_vs_ch_%i",    ibo)]->Fill(hit.Channel(), hit.Charge());
-        h2[Form("strip_pdo_vs_ch_%i",  ibo)]->Fill(hit.Channel(), hit.PDO());
-        h2[Form("strip_tdo_vs_ch_%i",  ibo)]->Fill(hit.Channel(), hit.TDO());
+        //h2[Form("strip_pdo_vs_ch_%i",  ibo)]->Fill(hit.Channel(), hit.PDO());
+        //h2[Form("strip_tdo_vs_ch_%i",  ibo)]->Fill(hit.Channel(), hit.TDO());
         h2[Form("strip_bcid_vs_ch_%i", ibo)]->Fill(hit.Channel(), hit.BCID());
-        h2[Form("strip_dbc_vs_ch_%i",  ibo)]->Fill(hit.Channel(), hit.BCID() - DATA->mm_EventHits.TrigTimeBCID(hit.MMFE8(),0));
+        h2[Form("strip_dbc_vs_ch_cut_%i",  ibo)]->Fill(hit.Channel(), dbcid_fix(hit.BCID(),DATA->mm_EventHits.TrigTimeBCID(hit.MMFE8(),0)));
       }
     }
 
     int test;
+    // require 1+ cluster, on EITHER board
     if (clusters_perboard.size() < 1) {
       for (int ipl = 0; ipl < nboards; ipl++){
         h2["clus_vs_board"]->Fill(ipl, 0);
@@ -249,19 +304,23 @@ int main(int argc, char* argv[]){
       }
       continue;
     }
+
+    for (auto clus_list: clusters_perboard)
+      for (auto clus: clus_list)
+        clusters_all.AddCluster(*clus);
+
     // hits, duplicates, clusters per board
     // ------------------------------------
     for (int ipl = 0; ipl < nboards; ipl++){
       test = -1;
       for (int i = 0; i < nboardshit; i++){
+
         // hits on this board!
         ibo = DATA->mm_EventHits[i].MMFE8Index();
         if (ipl == ibo){
           test = i;
-          //std::cout << "foundhits!, cluster size" << clusters_perboard[i].size()<< std::endl;
           h2["clus_vs_board"]->Fill(ipl, clusters_perboard[i].size());
           h2["hits_vs_board"]->Fill(ipl, DATA->mm_EventHits[i].GetNHits());
-          //std::cout << "filledhits!" << ipl<< std::endl;
         }
       }
       // no hits on this board!
@@ -279,51 +338,113 @@ int main(int argc, char* argv[]){
     int hit_0 = 0, hit_1 = 0, hit_6 = 0, hit_7 = 0;
     double x_i = 0;
     double x_j = 0;
+    int nstrips_0 = 0;
+    int nstrips_1 = 0;
+    int nholes_0 = -1;
+    int nholes_1 = -1;
     double dx = 0;
 
     for (int i = 0; i < clusters_perboard.size(); i++){
       for (int j = 0; j < clusters_perboard[i].size(); j++){
         const MMCluster& clus = clusters_perboard[i][j];
+
         if (clus.MMFE8() == 2){
           ibo = 0;
         }
         else {
           ibo = 1;
         }
+        // plot all cluster positions!
         h1[Form("x_bary_%i", ibo)]->Fill(clus.Channel()*0.4);
-//         if (clus.GetNHits() < 2)
-//           continue;
+        // plot strip multiplicities, inclusive
         h2["hits_per_clus_vs_board"]->Fill(ibo, clus.GetNHits());
-        if (clusters_perboard[i].size() > 1)
+
+        // if don't have one and only one cluster per board, don't let hit_0, hit_1 be true.
+        if (clusters_perboard[i].size() != 1)
           continue;
+
         if (ibo == 0) {
           hit_0 = 1;
           x_i = clus.Channel()*0.4;
+          nstrips_0 = clus.GetNHits();
+          nholes_0 = clus.NHoles();
         }
         else if (ibo == 1) {
           hit_1 = 1;
           x_j = clus.Channel()*0.4;
+          nstrips_1 = clus.GetNHits();
+          nholes_1 = clus.NHoles();
         }
-        if ( ( hit_0 && (x_i < 0.8) ) || 
-               ( hit_0 && (x_i > 23.6) ) ||
-             (hit_1 && (x_j < 0.8 )) || 
-              (hit_1 && (x_j > 23.6) ) ) {
+        if ( ( hit_0 && (x_i < 0.8) ) || ( hit_0 && (x_i > 23.6) ) ||
+             ( hit_1 && (x_j < 0.8) ) || ( hit_1 && (x_j > 23.6) ) ) {
           continue;
         }
-        h2["hits_per_clus_vs_board_fid"]->Fill(ibo, clus.GetNHits());
+        h2["hits_per_clus_vs_board_fid"]->Fill(ibo, clus.GetNHits()); // fiducial + require 1 clus. per board
       }
     }
 
     // fiducial cut!
-    
     if ( (x_i < 0.8 || x_i > 23.6) || (x_j < 0.8 || x_j > 23.6) ) 
       continue;
-    
+
+
+    // correct for any misalignment
+    double offset = -1;
+    if (m_RunNum == 324)
+      offset = -0.54;
+    else if (m_RunNum == 525)
+      offset = -1.2-2.5;
+    else if (m_RunNum == 453)
+      offset = -1.2-.5;
+    else
+      offset = -1.2;
+
     if (hit_1 && hit_0) {
-      dx = x_i - x_j - 1.2 ;
+
+      // MAKE PLOTS IN HERE!
+
+      dx = x_i - x_j + offset;
+            //dx = x_i - x_j - 1.2;
+
+      for (int ib = 0; ib < clusters_perboard.size(); ib++){
+        h2["clus_vs_board_postsel"]->Fill(ib, clusters_perboard[ib].size());
+      }
+
       h1["track_diff01_bary"]->Fill(dx);
+      h2["x_bary_0_track_diff01_bary"]->Fill(x_i,dx);
+      h2["x_bary_1_track_diff01_bary"]->Fill(x_j,dx);
+      h2["hits_per_clus_0_vs_hits_per_clus_1_fid"]->Fill(nstrips_0, nstrips_1);
+      h2["hits_per_clus_0_track_diff01_bary"]->Fill(nstrips_0,dx);
+      h2["hits_per_clus_1_track_diff01_bary"]->Fill(nstrips_1,dx);
+      h2["hits_per_clus_max_track_diff01_bary"]->Fill(std::max(nstrips_0,nstrips_1),dx);
+      h2["hits_per_clus_max_track_abs_diff01_bary"]->Fill(std::max(nstrips_0,nstrips_1),fabs(dx));
+      h2["holes_per_clus_0_track_diff01_bary"]->Fill(nholes_0,dx);
+      h2["holes_per_clus_1_track_diff01_bary"]->Fill(nholes_1,dx);
+
+      if (fabs(dx) < 2){
+        h2["hits_per_clus_0_vs_hits_per_clus_1_fid_pm2"]->Fill(nstrips_0, nstrips_1);
+        if (counter < 30) {
+          // make event displays
+          can = Plot_Track2D(Form("hits2D_%05d_pm2", evt), &clusters_all);
+          fout->cd("event_displays");
+          can->Write();
+          delete can;
+          counter += 1;
+        }
+      }
+      else if (fabs(dx) < 4) {
+        h2["hits_per_clus_0_vs_hits_per_clus_1_fid_pm4"]->Fill(nstrips_0, nstrips_1);
+      }
+      else{
+        h2["hits_per_clus_0_vs_hits_per_clus_1_fid_geq4"]->Fill(nstrips_0, nstrips_1);
+        can = Plot_Track2D(Form("hits2D_%05d_all", evt), &clusters_all);
+        fout->cd("event_displays");
+        can->Write();
+        delete can;
+      }
     }
   }
+
   fout->cd();
   fout->mkdir("histograms");
   fout->cd("histograms");

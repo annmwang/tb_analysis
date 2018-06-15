@@ -16,6 +16,7 @@
 #include "include/MMRunProperties.hh"
 #include "include/MMPacmanAlgo.hh"
 #include "include/MMPlot.hh"
+#include <vector>
 //#include "include/GeoOctuplet.hh"
 //#include "include/SimpleTrackFitter.hh"
 
@@ -195,11 +196,25 @@ int main(int argc, char* argv[]){
   fout->mkdir("event_displays");
   MMPlot();
 
+  int lastdiffBCIDcut=0;
+  int run525_not172cut=0;
+  int run453_not45cut=0;
+  int run525_not172_173cut=0;
+  // int nohitscut=0;
+  int noclustercut=0;
+  int run453_not45_44cut=0;
+  int ClustersNot1Cut=0;
+  // int cut8=0;
+  // int cut9=0;
+  // int cut10=10;
+  int fudcut=0;
+
   for(int evt = 0; evt < Nevent; evt++){
     DATA->GetEntry(evt);
-    if(evt%10000 == 0)
-      cout << "Processing event # " << evt << " | " << Nevent << endl;
-
+    if(evt%10000 == 0){
+          cout << "Processing event # " << evt << " | " << Nevent << endl;
+      // cout << "test success!" <<endl;
+    }
 //     if (evt > 10000)
 //       break;
     clusters_all.Reset();
@@ -219,8 +234,7 @@ int main(int argc, char* argv[]){
     PACMAN->SetEventTrigBCID(-1);
     if (m_RunNum != 525 && m_RunNum != 453){
       PACMAN->SetMaxBCIDDiff(7);
-      PACMAN->SetMinBCIDDiff(-2);
-    }
+      PACMAN->SetMinBCIDDiff(-2);    }
     // how many duplicate hits in the event
     // (number of hits with at least 1 dup)
     int Ndup_evt = DATA->mm_EventHits.GetNDuplicates();
@@ -233,30 +247,44 @@ int main(int argc, char* argv[]){
     }
     if (last_diff != -1 && dBCIDrel != last_diff && skip_transition){
       last_diff = dBCIDrel;
+      lastdiffBCIDcut+=1;
       continue;
     }
     last_diff = dBCIDrel;
 
     h2["dtrigBCID_vs_evt"]->Fill(evt,dBCID);
 
-    if (m_RunNum == 525 && dBCID != -172)
+    if (m_RunNum == 525 && dBCID != -172){
+      run525_not172cut+=1;
+    //cout<< "Increasing cut 2"<<endl;
       continue;
-    if (m_RunNum == 453 && dBCID != 45)
-      continue;
+    }
+    if (m_RunNum == 453 && dBCID != 45){
+      run453_not45cut+=1;
+      //cout<< "Increasing cut 3"<<endl;
+	continue;
+    }
 
     h2["dtrigBCIDrel_vs_evt"]->Fill(evt,dBCIDrel);
 
-    if (m_RunNum == 525 && (dBCIDrel != -172 && dBCIDrel != -173) )
-      continue;
+    if (m_RunNum == 525 && (dBCIDrel != -172 && dBCIDrel != -173) ){
+      run525_not172_173cut+=1;
+      //cout<< "Increasing cut 4"<<endl;
+	continue;}
 
-    if (m_RunNum == 453 && (dBCIDrel != 45 && dBCIDrel != 44) )
+    if (m_RunNum == 453 && (dBCIDrel != 45 && dBCIDrel != 44) ){
+      run453_not45_44cut+=1;
       continue;
+    }
 
     // run pacman
     int nboardshit = DATA->mm_EventHits.GetNBoards();
     for(int i = 0; i < nboardshit; i++){
-      if(DATA->mm_EventHits[i].GetNHits() == 0)
-        continue;
+      if(DATA->mm_EventHits[i].GetNHits() == 0){
+	//nohitscut+=1;
+	//cout<< "Increasing cut 6"<<endl;
+	continue;
+      }
       MMClusterList board_clusters = PACMAN->Cluster(DATA->mm_EventHits[i]);
       if (board_clusters.GetNCluster() > 0)
         clusters_perboard.push_back(board_clusters);
@@ -275,8 +303,10 @@ int main(int argc, char* argv[]){
         h2[Form("strip_pdo_vs_ch_%i",  ibo)]->Fill(hit.Channel(), hit.PDO());
         h2[Form("strip_tdo_vs_ch_%i",  ibo)]->Fill(hit.Channel(), hit.TDO());
 
-        if( !PACMAN->IsGoodHit(hit) )
-          continue;
+        if( !PACMAN->IsGoodHit(hit) ){
+	  //cout<< "Increasing cut 7"<<endl;
+	  continue;
+	}
 
         h1["tdo_gain"]->Fill(hit.TDOGain());
         h1["tdo_ped"] ->Fill(hit.TDOPed());
@@ -302,9 +332,10 @@ int main(int argc, char* argv[]){
         h2["clus_vs_board"]->Fill(ipl, 0);
         h2["hits_vs_board"]->Fill(ipl, 0);
       }
+      noclustercut+=1;
       continue;
     }
-
+    
     for (auto clus_list: clusters_perboard)
       for (auto clus: clus_list)
         clusters_all.AddCluster(*clus);
@@ -343,7 +374,7 @@ int main(int argc, char* argv[]){
     int nholes_0 = -1;
     int nholes_1 = -1;
     double dx = 0;
-
+    bool CountedOnCut = false;
     for (int i = 0; i < clusters_perboard.size(); i++){
       for (int j = 0; j < clusters_perboard[i].size(); j++){
         const MMCluster& clus = clusters_perboard[i][j];
@@ -360,9 +391,14 @@ int main(int argc, char* argv[]){
         h2["hits_per_clus_vs_board"]->Fill(ibo, clus.GetNHits());
 
         // if don't have one and only one cluster per board, don't let hit_0, hit_1 be true.
-        if (clusters_perboard[i].size() != 1)
-          continue;
-
+        if (clusters_perboard[i].size() != 1){
+	  if (CountedOnCut == false){
+	    ClustersNot1Cut += 1;
+	    CountedOnCut = true;
+	  }
+	  // cout<< "Increasing cut 9"<<endl;
+	  continue;
+	}
         if (ibo == 0) {
           hit_0 = 1;
           x_i = clus.Channel()*0.4;
@@ -377,15 +413,17 @@ int main(int argc, char* argv[]){
         }
         if ( ( hit_0 && (x_i < 0.8) ) || ( hit_0 && (x_i > 23.6) ) ||
              ( hit_1 && (x_j < 0.8) ) || ( hit_1 && (x_j > 23.6) ) ) {
-          continue;
+	  continue;
         }
         h2["hits_per_clus_vs_board_fid"]->Fill(ibo, clus.GetNHits()); // fiducial + require 1 clus. per board
       }
     }
 
     // fiducial cut!
-    if ( (x_i < 0.8 || x_i > 23.6) || (x_j < 0.8 || x_j > 23.6) ) 
+    if ( (x_i < 0.8 || x_i > 23.6) || (x_j < 0.8 || x_j > 23.6) ){ 
+      fudcut+=1;
       continue;
+    }
 
 
     // correct for any misalignment
@@ -445,6 +483,67 @@ int main(int argc, char* argv[]){
     }
   }
 
+  // std::cout << cut1 nline cut2 nline cut3 nline cut4 nline cut5 nline cut6 nline cut7 nline cut8 nline cut9 << endl;
+  //  std::cout << cut9 << endl;
+
+  cout << "lastdiffBCIDcut: "<< lastdiffBCIDcut  <<endl;
+  cout << "run525_not172cut: "<< run525_not172cut  <<endl;
+  cout << "run453_not45cut: "<< run453_not45cut <<endl;
+  cout << "run525_not172_173cut: "<< run525_not172_173cut <<endl;
+  cout << "run453_not45_44cut: "<< run453_not45_44cut <<endl;
+  // cout << "nohitscut: "<< nohitscut <<endl;
+  cout << "noclustercut: "<< noclustercut <<endl;
+  cout << "ClustersNot1Cut: "<< ClustersNot1Cut <<endl;
+  // cout << "cut9: "<< cut9 <<endl;
+  // cout << "cut10: "<< cut10 <<endl;
+  cout << "fudcut: "<< fudcut <<endl;
+
+
+  std::map< string, TH1D* > h3;
+  h3[Form("Cuts")] = new TH1D(Form("Cuts"), "Events per Cut;Cut; Events", 0,8,1);
+  h3[Form("CutsTotalEvt")] = new TH1D (Form("CutsTotalEvt"), "Events After Each Cut;Cut;Event",0,9,1);
+
+  const Int_t nx = 9;
+  const Int_t bub = 10;
+  const char *cuts[nx] = {"lastdiffBCIDcut",/*"run525_not172cut","run453_not45cut","run525_not172_173cut","run453_not45_44cut",*/"noclustercut","ClustersNot1Cut","fudcut"};
+  using ints = std::vector<int>;
+  const ints varis{lastdiffBCIDcut,/*run525_not172cut,run453_not45cut,run525_not172_173cut,run453_not45_44cut,*/noclustercut,ClustersNot1Cut,fudcut};
+  const ints evttot{Nevent,
+      Nevent-lastdiffBCIDcut,
+      // Nevent-lastdiffBCIDcut-run525_not172cut,
+      //Nevent-lastdiffBCIDcut-run525_not172cut-run453_not45cut,
+      //Nevent-lastdiffBCIDcut-run525_not172cut-run453_not45cut-run525_not172_173cut,
+      //Nevent-lastdiffBCIDcut-run525_not172cut-run453_not45cut-run525_not172_173cut-run453_not45_44cut,
+      Nevent-lastdiffBCIDcut/*-run525_not172cut-run453_not45cut-run525_not172_173cut-run453_not45_44cut*/-noclustercut,
+      Nevent-lastdiffBCIDcut/*-run525_not172cut-run453_not45cut-run525_not172_173cut-run453_not45_44cut*/-noclustercut-ClustersNot1Cut,
+      Nevent-lastdiffBCIDcut/*-run525_not172cut-run453_not45cut-run525_not172_173cut-run453_not45_44cut*/-noclustercut-ClustersNot1Cut-fudcut};
+  const char *evtlabels[bub] = {"Total events","lastdiffBCIDcut",/*"run525_not172cut","run453_not45cut","run525_not172_173cut","run453_not45_44cut",*/"noclustercut","ClustersNot1Cut","fudcut"};
+  //TCanvas * c1 = new TCanvas("c1","demo bin labels",10,10,900,500);
+  
+  for (int j = 1;j < 4 /*8*/; j++){
+    h3["Cuts"]->Fill(cuts[j],varis[j]);
+  }
+  
+  for (int k = 1;k < 5 /*9*/; k++){
+    h3["CutsTotalEvt"]->Fill(evtlabels[k],evttot[k]);
+  }
+    
+  h3["CutsTotalEvt"]->SetBarWidth(0.45);
+  h3["CutsTotalEvt"]->SetBarOffset(0.1);
+  h3["CutsTotalEvt"]->LabelsDeflate();
+  h3["CutsTotalEvt"]->SetCanExtend(TH1::kAllAxes);
+  h3["CutsTotalEvt"]->SetStats(0);
+  h3["CutsTotalEvt"]->SetFillColor(38);
+  // h3["CutsTotalEvt"]->Draw("bar");
+
+  h3["Cuts"]->SetBarWidth(0.45);
+  h3["Cuts"]->SetBarOffset(0.1);
+  h3["Cuts"]->LabelsDeflate();
+  h3["Cuts"]->SetCanExtend(TH1::kAllAxes);
+  h3["Cuts"]->SetStats(0);
+  h3["Cuts"]->SetFillColor(38);
+
+
   fout->cd();
   fout->mkdir("histograms");
   fout->cd("histograms");
@@ -453,5 +552,8 @@ int main(int argc, char* argv[]){
     kv.second->Write();
   for (auto kv: h2)
     kv.second->Write();
+  for (auto kv: h3)
+    kv.second->Write();
   fout->Close();
 }
+

@@ -16,7 +16,6 @@
 #include "include/MMRunProperties.hh"
 #include "include/MMPacmanAlgo.hh"
 #include "include/MMPlot.hh"
-#include <vector>
 //#include "include/GeoOctuplet.hh"
 //#include "include/SimpleTrackFitter.hh"
 
@@ -234,7 +233,8 @@ int main(int argc, char* argv[]){
     PACMAN->SetEventTrigBCID(-1);
     if (m_RunNum != 525 && m_RunNum != 453){
       PACMAN->SetMaxBCIDDiff(7);
-      PACMAN->SetMinBCIDDiff(-2);    }
+      PACMAN->SetMinBCIDDiff(-2);
+    }
     // how many duplicate hits in the event
     // (number of hits with at least 1 dup)
     int Ndup_evt = DATA->mm_EventHits.GetNDuplicates();
@@ -248,6 +248,7 @@ int main(int argc, char* argv[]){
     if (last_diff != -1 && dBCIDrel != last_diff && skip_transition){
       last_diff = dBCIDrel;
       lastdiffBCIDcut+=1;
+      // cout<< "Increasing cut 1" <<endl;
       continue;
     }
     last_diff = dBCIDrel;
@@ -499,51 +500,6 @@ int main(int argc, char* argv[]){
   cout << "fudcut: "<< fudcut <<endl;
 
 
-  std::map< string, TH1D* > h3;
-  h3[Form("Cuts")] = new TH1D(Form("Cuts"), "Events per Cut;Cut; Events", 0,8,1);
-  h3[Form("CutsTotalEvt")] = new TH1D (Form("CutsTotalEvt"), "Events After Each Cut;Cut;Event",0,9,1);
-
-  const Int_t nx = 9;
-  const Int_t bub = 10;
-  const char *cuts[nx] = {"lastdiffBCIDcut",/*"run525_not172cut","run453_not45cut","run525_not172_173cut","run453_not45_44cut",*/"noclustercut","ClustersNot1Cut","fudcut"};
-  using ints = std::vector<int>;
-  const ints varis{lastdiffBCIDcut,/*run525_not172cut,run453_not45cut,run525_not172_173cut,run453_not45_44cut,*/noclustercut,ClustersNot1Cut,fudcut};
-  const ints evttot{Nevent,
-      Nevent-lastdiffBCIDcut,
-      // Nevent-lastdiffBCIDcut-run525_not172cut,
-      //Nevent-lastdiffBCIDcut-run525_not172cut-run453_not45cut,
-      //Nevent-lastdiffBCIDcut-run525_not172cut-run453_not45cut-run525_not172_173cut,
-      //Nevent-lastdiffBCIDcut-run525_not172cut-run453_not45cut-run525_not172_173cut-run453_not45_44cut,
-      Nevent-lastdiffBCIDcut/*-run525_not172cut-run453_not45cut-run525_not172_173cut-run453_not45_44cut*/-noclustercut,
-      Nevent-lastdiffBCIDcut/*-run525_not172cut-run453_not45cut-run525_not172_173cut-run453_not45_44cut*/-noclustercut-ClustersNot1Cut,
-      Nevent-lastdiffBCIDcut/*-run525_not172cut-run453_not45cut-run525_not172_173cut-run453_not45_44cut*/-noclustercut-ClustersNot1Cut-fudcut};
-  const char *evtlabels[bub] = {"Total events","lastdiffBCIDcut",/*"run525_not172cut","run453_not45cut","run525_not172_173cut","run453_not45_44cut",*/"noclustercut","ClustersNot1Cut","fudcut"};
-  //TCanvas * c1 = new TCanvas("c1","demo bin labels",10,10,900,500);
-  
-  for (int j = 1;j < 4 /*8*/; j++){
-    h3["Cuts"]->Fill(cuts[j],varis[j]);
-  }
-  
-  for (int k = 1;k < 5 /*9*/; k++){
-    h3["CutsTotalEvt"]->Fill(evtlabels[k],evttot[k]);
-  }
-    
-  h3["CutsTotalEvt"]->SetBarWidth(0.45);
-  h3["CutsTotalEvt"]->SetBarOffset(0.1);
-  h3["CutsTotalEvt"]->LabelsDeflate();
-  h3["CutsTotalEvt"]->SetCanExtend(TH1::kAllAxes);
-  h3["CutsTotalEvt"]->SetStats(0);
-  h3["CutsTotalEvt"]->SetFillColor(38);
-  // h3["CutsTotalEvt"]->Draw("bar");
-
-  h3["Cuts"]->SetBarWidth(0.45);
-  h3["Cuts"]->SetBarOffset(0.1);
-  h3["Cuts"]->LabelsDeflate();
-  h3["Cuts"]->SetCanExtend(TH1::kAllAxes);
-  h3["Cuts"]->SetStats(0);
-  h3["Cuts"]->SetFillColor(38);
-
-
   fout->cd();
   fout->mkdir("histograms");
   fout->cd("histograms");
@@ -551,8 +507,6 @@ int main(int argc, char* argv[]){
   for (auto kv: h1)
     kv.second->Write();
   for (auto kv: h2)
-    kv.second->Write();
-  for (auto kv: h3)
     kv.second->Write();
   fout->Close();
 }
